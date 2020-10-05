@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -20,7 +21,7 @@ func Handler(ctx context.Context) (Response, error) {
 	var buf bytes.Buffer
 
 	body, err := json.Marshal(map[string]interface{}{
-		"message": "Okay so your other function also executed successfully!",
+		"message": os.Getenv("FOO"),
 	})
 	if err != nil {
 		return Response{StatusCode: 404}, err

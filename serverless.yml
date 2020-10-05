@@ -18,35 +18,36 @@ service: helloworld
 
 # You can pin your service to only deploy with a specific Serverless version
 # Check out our docs for more details
-frameworkVersion: '2'
+frameworkVersion: "2"
 
 provider:
   name: aws
   runtime: go1.x
 
-# you can overwrite defaults here
+  # you can overwrite defaults here
   stage: dev
   region: eu-west-1
 
-# you can add statements to the Lambda function's IAM Role here
-#  iamRoleStatements:
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:ListBucket"
-#      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
-#    - Effect: "Allow"
-#      Action:
-#        - "s3:PutObject"
-#      Resource:
-#        Fn::Join:
-#          - ""
-#          - - "arn:aws:s3:::"
-#            - "Ref" : "ServerlessDeploymentBucket"
-#            - "/*"
+  # you can add statements to the Lambda function's IAM Role here
+  #  iamRoleStatements:
+  #    - Effect: "Allow"
+  #      Action:
+  #        - "s3:ListBucket"
+  #      Resource: { "Fn::Join" : ["", ["arn:aws:s3:::", { "Ref" : "ServerlessDeploymentBucket" } ] ]  }
+  #    - Effect: "Allow"
+  #      Action:
+  #        - "s3:PutObject"
+  #      Resource:
+  #        Fn::Join:
+  #          - ""
+  #          - - "arn:aws:s3:::"
+  #            - "Ref" : "ServerlessDeploymentBucket"
+  #            - "/*"
 
-# you can define service wide environment variables here
-environment:
-  PUT: PSR
+  # you can define service wide environment variables here
+  environment:
+    PUT: PSR
+    Bucket: !Ref Storage
 
 package:
   exclude:
@@ -105,16 +106,15 @@ functions:
 #            path: /hello
 
 #    Define function environment variables here
-#    environment:
-#      variable2: value2
+  # environment:
+  #   PUT: PSR
+  #   Bucket: !Ref Storage
 
 # you can add CloudFormation resource templates here
-#resources:
-#  Resources:
-#    NewResource:
-#      Type: AWS::S3::Bucket
-#      Properties:
-#        BucketName: my-new-bucket
+resources:
+  Resources:
+    Storage:
+      Type: AWS::S3::Bucket
 #  Outputs:
 #     NewOutput:
 #       Description: "Description for the output"
