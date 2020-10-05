@@ -100,11 +100,11 @@ resources:
   Resources:
     Storage:
       Type: AWS::S3::Bucket
-      Properties:
-        NotificationConfiguration:
-          QueueConfigurations:
-          - Event: s3:ObjectCreated:*
-            Queue: !GetAtt Queue.Arn
+      # Properties:
+      #   NotificationConfiguration:
+      #     QueueConfigurations:
+      #     - Event: s3:ObjectCreated:*
+      #       Queue: !GetAtt Queue.Arn
     Table:
       Type: AWS::DynamoDB::Table
       Properties:
@@ -115,21 +115,21 @@ resources:
           - AttributeName: ID
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
-    Queue:
-      Type: AWS::SQS::Queue
-      Properties:
-        VisibilityTimeout: 60
-    QueuePolicy:
-      Type: AWS::SQS::QueuePolicy
-      Properties:
-        Queues:
-        - !Ref Queue
-        PolicyDocument:
-          Id: "QueuePolicyId1"
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Principal:
-              Service: "s3.amazonaws.com"
-            Action: "sqs:SendMessage"
-            Resource: !GetAtt Queue.Arn
+    # Queue:
+    #   Type: AWS::SQS::Queue
+    #   Properties:
+    #     VisibilityTimeout: 60
+    # QueuePolicy:
+    #   Type: AWS::SQS::QueuePolicy
+    #   Properties:
+    #     Queues:
+    #     - !Ref Queue
+    #     PolicyDocument:
+    #       Id: "QueuePolicyId1"
+    #       Version: "2012-10-17"
+    #       Statement:
+    #       - Effect: Allow
+    #         Principal:
+    #           Service: "s3.amazonaws.com"
+    #         Action: "sqs:SendMessage"
+    #         Resource: !GetAtt Queue.Arn

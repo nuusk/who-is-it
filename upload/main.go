@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -12,7 +13,9 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"gopkg.in/validator.v1"
@@ -50,9 +53,31 @@ type BodyResponse struct {
 	Id       string `json:"id"`
 }
 
+func getImagePublicURL(key string) string {
+	// "http://helloworld-dev-storage-19qdwfr7f4hse.s3-eu-west-1.amazonaws.com/7ff0e82d-fdf3-4547-9532-842f090289cd.png"
+	bucketName := "helloworld-dev-storage-19qdwfr7f4hse"
+	region := "eu-west-1"
+	url := fmt.Sprintf(
+		"http://%s.s3-%s.amazonaws.com/%s",
+		bucketName,
+		region,
+		key,
+	)
+	return url
+}
+
+func getImageNameWithExtension(key string) string {
+	name := fmt.Sprintf(
+		"%s.png",
+		key,
+	)
+	return name
+}
+
 func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	// connect to s3
 	sess := session.Must(session.NewSession())
+	dyna := dynamodb.New(sess)
 	uploader := s3manager.NewUploader(sess)
 
 	uid := uuid.New()
@@ -93,9 +118,11 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 	}
 
 	bucket := os.Getenv("Bucket")
+	iKey := uid.String()
+	iName := getImageNameWithExtension(iKey)
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucket),
-		Key:    aws.String(uid.String() + ".png"),
+		Key:    aws.String(iName),
 		Body:   bytes.NewReader(decoded),
 		ACL:    aws.String("public-read"),
 	})
@@ -103,6 +130,50 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 		log.Printf("There was an issue uploading to s3: %s", err.Error())
 		return events.APIGatewayProxyResponse{Body: "Unable to save response\n", StatusCode: http.StatusBadRequest}, nil
 	}
+
+	table := os.Getenv("Table")
+	newItem := &dynamodb.PutItemInput{
+		Item: map[string]*dynamodb.AttributeValue{
+			"ID": {
+				S: aws.String(iKey),
+			},
+			"url": {
+				S: aws.String(getImagePublicURL(iName)),
+			},
+		},
+		TableName: aws.String(table),
+	}
+	result, err := dyna.PutItem(newItem)
+	if err != nil {
+		aerr, _ := err.(awserr.Error)
+		if aerr != nil {
+			switch aerr.Code() {
+			case dynamodb.ErrCodeConditionalCheckFailedException:
+				fmt.Println(dynamodb.ErrCodeConditionalCheckFailedException, aerr.Error())
+			case dynamodb.ErrCodeProvisionedThroughputExceededException:
+				fmt.Println(dynamodb.ErrCodeProvisionedThroughputExceededException, aerr.Error())
+			case dynamodb.ErrCodeResourceNotFoundException:
+				fmt.Println(dynamodb.ErrCodeResourceNotFoundException, aerr.Error())
+			case dynamodb.ErrCodeItemCollectionSizeLimitExceededException:
+				fmt.Println(dynamodb.ErrCodeItemCollectionSizeLimitExceededException, aerr.Error())
+			case dynamodb.ErrCodeTransactionConflictException:
+				fmt.Println(dynamodb.ErrCodeTransactionConflictException, aerr.Error())
+			case dynamodb.ErrCodeRequestLimitExceeded:
+				fmt.Println(dynamodb.ErrCodeRequestLimitExceeded, aerr.Error())
+			case dynamodb.ErrCodeInternalServerError:
+				fmt.Println(dynamodb.ErrCodeInternalServerError, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
+			return events.APIGatewayProxyResponse{Body: "error with dyna put item\n", StatusCode: http.StatusBadRequest}, nil
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+	}
+
+	fmt.Println(result)
 
 	// Marshal the response into json bytes, if error return 404
 	response, err := json.Marshal(&bodyResponse)
