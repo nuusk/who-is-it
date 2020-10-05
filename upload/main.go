@@ -4,12 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net/http"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"gopkg.in/validator.v1"
+
 	"github.com/rs/xid"
 )
 
@@ -33,8 +36,8 @@ func init() {
 
 // BodyRequest is our self-made struct to process JSON request from Client
 type BodyRequest struct {
-	ImageBase64 string `json:"image_base64"`
-	FileName    string `json:"file_name"`
+	ImageBase64 string `json:"image_base64" validate:"nonzero"`
+	FileName    string `json:"file_name" validate:"nonzero"`
 }
 
 // BodyResponse is our self-made struct to build response for Client
@@ -55,8 +58,15 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 	// Unmarshal the json, return 404 if error
 	err := json.Unmarshal([]byte(request.Body), &bodyRequest)
 	if err != nil {
-		return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: 404}, nil
+		return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: http.StatusNotFound}, nil
 	}
+	valid, _ := validator.Validate(bodyRequest)
+	log.Print("valid")
+	log.Print(valid)
+	if !valid {
+		return events.APIGatewayProxyResponse{Body: "Validation Error", StatusCode: http.StatusBadRequest}, nil
+	}
+
 	log.Print("bodyRequest")
 	log.Print(bodyRequest)
 
