@@ -1,19 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"gopkg.in/validator.v1"
 
-	"github.com/rs/xid"
+	"github.com/google/uuid"
 )
 
 // Response is of type APIGatewayProxyResponse since we're leveraging the
@@ -47,7 +51,11 @@ type BodyResponse struct {
 }
 
 func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	guid := xid.New()
+	// connect to s3
+	sess := session.Must(session.NewSession())
+	uploader := s3manager.NewUploader(sess)
+
+	uid := uuid.New()
 
 	// Output: 9m4e2mr0ui3e8a215n4g
 	// BodyRequest will be used to take the json response from client and build it
@@ -73,10 +81,28 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 	// We will build the BodyResponse and send it back in json form
 	bodyResponse := BodyResponse{
 		FileName: bodyRequest.FileName + " ok",
-		Id:       guid.String(),
+		Id:       uid.String(),
 	}
 	log.Print("bodyResponse")
 	log.Print(bodyResponse)
+
+	decoded, err := base64.StdEncoding.DecodeString(bodyRequest.ImageBase64)
+	if err != nil {
+		log.Printf("error decoding image base 64: %s", err.Error())
+		return events.APIGatewayProxyResponse{Body: "error decoding image base 64\n", StatusCode: http.StatusBadRequest}, nil
+	}
+
+	bucket := os.Getenv("Bucket")
+	_, err = uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(uid.String() + ".png"),
+		Body:   bytes.NewReader(decoded),
+		ACL:    aws.String("public-read"),
+	})
+	if err != nil {
+		log.Printf("There was an issue uploading to s3: %s", err.Error())
+		return events.APIGatewayProxyResponse{Body: "Unable to save response\n", StatusCode: http.StatusBadRequest}, nil
+	}
 
 	// Marshal the response into json bytes, if error return 404
 	response, err := json.Marshal(&bodyResponse)
