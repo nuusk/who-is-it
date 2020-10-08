@@ -73,12 +73,12 @@ functions:
       - http:
           path: upload
           method: post
-  # list:
-  #   handler: bin/list
-  #   events:
-  #     - http:
-  #         path: list
-  #         method: get
+  list:
+    handler: bin/list
+    events:
+      - http:
+          path: list
+          method: get
   # created:
   #   handler: bin/created
   #   reservedConcurrency: 5

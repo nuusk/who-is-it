@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
@@ -16,41 +15,23 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/validator.v1"
 
 	"github.com/google/uuid"
 )
 
-// Response is of type APIGatewayProxyResponse since we're leveraging the
-// AWS Lambda Proxy Request functionality (default behavior)
-//
-// https://serverless.com/framework/docs/providers/aws/events/apigateway/#lambda-proxy-integration
-type Response events.APIGatewayProxyResponse
-
-var invokeCount = 0
-var myObjects []*s3.Object
-
-func init() {
-	svc := s3.New(session.New())
-	input := &s3.ListObjectsV2Input{
-		Bucket: aws.String("examplebucket"),
-	}
-	result, _ := svc.ListObjectsV2(input)
-	myObjects = result.Contents
-}
-
-// BodyRequest is our self-made struct to process JSON request from Client
-type BodyRequest struct {
-	ImageBase64 string `json:"image_base64" validate:"nonzero"`
-	FileName    string `json:"file_name" validate:"nonzero"`
+// UploadImageRequest is our self-made struct to process JSON request from Client
+type UploadImageRequest struct {
+	ImageBase64 string `json:"imageBase64" validate:"nonzero"`
+	FileName    string `json:"fileName" validate:"nonzero"`
 }
 
 // BodyResponse is our self-made struct to build response for Client
 type BodyResponse struct {
-	FileName string `json:"file_name"`
-	Id       string `json:"id"`
+	FileName string `json:"fileName"`
+	ID       string `json:"id"`
 }
 
 func getImagePublicURL(key string) string {
@@ -74,44 +55,41 @@ func getImageNameWithExtension(key string) string {
 	return name
 }
 
+// UploadHandler ...
 func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// connect to s3
 	sess := session.Must(session.NewSession())
 	dyna := dynamodb.New(sess)
 	uploader := s3manager.NewUploader(sess)
 
 	uid := uuid.New()
 
-	// Output: 9m4e2mr0ui3e8a215n4g
-	// BodyRequest will be used to take the json response from client and build it
-	var bodyRequest BodyRequest
+	var uploadImageRequest UploadImageRequest
 
-	log.Print("request")
-	log.Print(request.Body)
-	// Unmarshal the json, return 404 if error
-	err := json.Unmarshal([]byte(request.Body), &bodyRequest)
+	log.Info().Msgf("got request: %v", request)
+
+	err := json.Unmarshal([]byte(request.Body), &uploadImageRequest)
 	if err != nil {
 		return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: http.StatusNotFound}, nil
 	}
-	valid, _ := validator.Validate(bodyRequest)
+	valid, _ := validator.Validate(uploadImageRequest)
 	log.Print("valid")
 	log.Print(valid)
 	if !valid {
 		return events.APIGatewayProxyResponse{Body: "Validation Error", StatusCode: http.StatusBadRequest}, nil
 	}
 
-	log.Print("bodyRequest")
-	log.Print(bodyRequest)
+	log.Print("uploadImageRequest")
+	log.Print(uploadImageRequest)
 
 	// We will build the BodyResponse and send it back in json form
 	bodyResponse := BodyResponse{
-		FileName: bodyRequest.FileName + " ok",
-		Id:       uid.String(),
+		FileName: uploadImageRequest.FileName,
+		ID:       uid.String(),
 	}
-	log.Print("bodyResponse")
-	log.Print(bodyResponse)
 
-	decoded, err := base64.StdEncoding.DecodeString(bodyRequest.ImageBase64)
+	log.Info().Msgf("created bodyResponse: %v", bodyResponse)
+
+	decoded, err := base64.StdEncoding.DecodeString(uploadImageRequest.ImageBase64)
 	if err != nil {
 		log.Printf("error decoding image base 64: %s", err.Error())
 		return events.APIGatewayProxyResponse{Body: "error decoding image base 64\n", StatusCode: http.StatusBadRequest}, nil
@@ -136,6 +114,9 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 		Item: map[string]*dynamodb.AttributeValue{
 			"ID": {
 				S: aws.String(iKey),
+			},
+			"fileName": {
+				S: aws.String(uploadImageRequest.FileName),
 			},
 			"url": {
 				S: aws.String(getImagePublicURL(iName)),
@@ -167,8 +148,6 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 			}
 			return events.APIGatewayProxyResponse{Body: "error with dyna put item\n", StatusCode: http.StatusBadRequest}, nil
 		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
 			fmt.Println(err.Error())
 		}
 	}
@@ -183,31 +162,6 @@ func UploadHandler(ctx context.Context, request events.APIGatewayProxyRequest) (
 
 	return events.APIGatewayProxyResponse{Body: string(response), StatusCode: 200}, nil
 }
-
-// Handler is our lambda handler invoked by the `lambda.Start` function call
-// func Handler(ctx context.Context) (Response, error) {
-// 	var buf bytes.Buffer
-
-// 	body, err := json.Marshal(map[string]interface{}{
-// 		"message": "Go Serverless v1.0! Your function executed successfully!",
-// 	})
-// 	if err != nil {
-// 		return Response{StatusCode: 404}, err
-// 	}
-// 	json.HTMLEscape(&buf, body)
-
-// 	resp := Response{
-// 		StatusCode:      200,
-// 		IsBase64Encoded: false,
-// 		Body:            buf.String(),
-// 		Headers: map[string]string{
-// 			"Content-Type":           "application/json",
-// 			"X-MyCompany-Func-Reply": "hello-handler",
-// 		},
-// 	}
-
-// 	return resp, nil
-// }
 
 func main() {
 	lambda.Start(UploadHandler)
