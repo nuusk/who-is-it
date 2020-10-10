@@ -3,75 +3,72 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/aws/aws-lambda-go/events"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go/service/rekognition"
+	"github.com/rs/zerolog/log"
 )
 
-// Response is of type APIGatewayProxyResponse since we're leveraging the
-// AWS Lambda Proxy Request functionality (default behavior)
-//
-// https://serverless.com/framework/docs/providers/aws/events/apigateway/#lambda-proxy-integration
-type Response events.APIGatewayProxyResponse
+// CreatedHandler ...
+func CreatedHandler(ctx context.Context, event events.S3Event) (bool, error) {
+	svc := rekognition.New(session.New())
 
-var invokeCount = 0
-var myObjects []*s3.Object
+	for _, record := range event.Records {
+		log.Info().Msgf("%v\n %v", record.S3.Bucket.Name, record.S3.Object.Key)
 
-func init() {
-	svc := s3.New(session.New())
-	input := &s3.ListObjectsV2Input{
-		Bucket: aws.String("examplebucket"),
+		input := &rekognition.DetectLabelsInput{
+			Image: &rekognition.Image{
+				S3Object: &rekognition.S3Object{
+					Bucket: aws.String(record.S3.Bucket.Name),
+					Name:   aws.String(record.S3.Object.Key),
+				},
+			},
+			MaxLabels:     aws.Int64(12),
+			MinConfidence: aws.Float64(70.000000),
+		}
+
+		result, err := svc.DetectLabels(input)
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				switch aerr.Code() {
+				case rekognition.ErrCodeInvalidS3ObjectException:
+					fmt.Println(rekognition.ErrCodeInvalidS3ObjectException, aerr.Error())
+				case rekognition.ErrCodeInvalidParameterException:
+					fmt.Println(rekognition.ErrCodeInvalidParameterException, aerr.Error())
+				case rekognition.ErrCodeImageTooLargeException:
+					fmt.Println(rekognition.ErrCodeImageTooLargeException, aerr.Error())
+				case rekognition.ErrCodeAccessDeniedException:
+					fmt.Println(rekognition.ErrCodeAccessDeniedException, aerr.Error())
+				case rekognition.ErrCodeInternalServerError:
+					fmt.Println(rekognition.ErrCodeInternalServerError, aerr.Error())
+				case rekognition.ErrCodeThrottlingException:
+					fmt.Println(rekognition.ErrCodeThrottlingException, aerr.Error())
+				case rekognition.ErrCodeProvisionedThroughputExceededException:
+					fmt.Println(rekognition.ErrCodeProvisionedThroughputExceededException, aerr.Error())
+				case rekognition.ErrCodeInvalidImageFormatException:
+					fmt.Println(rekognition.ErrCodeInvalidImageFormatException, aerr.Error())
+				default:
+					fmt.Println(aerr.Error())
+				}
+			} else {
+				// Print the error, cast err to awserr.Error to get the Code and
+				// Message from an error.
+				fmt.Println(err.Error())
+			}
+			return false, nil
+		}
+
+		log.Info().Msgf("%v", result)
 	}
-	result, _ := svc.ListObjectsV2(input)
-	myObjects = result.Contents
+
+	return true, nil
 }
-
-func LambdaHandler(ctx context.Context) (Response, error) {
-	invokeCount = invokeCount + 1
-
-	resp := Response{
-		StatusCode:      200,
-		IsBase64Encoded: false,
-		Body:            fmt.Sprint(invokeCount),
-		Headers: map[string]string{
-			"Content-Type":           "application/json",
-			"X-MyCompany-Func-Reply": "hello-handler",
-		},
-	}
-
-	log.Print(myObjects)
-	return resp, nil
-}
-
-// Handler is our lambda handler invoked by the `lambda.Start` function call
-// func Handler(ctx context.Context) (Response, error) {
-// 	var buf bytes.Buffer
-
-// 	body, err := json.Marshal(map[string]interface{}{
-// 		"message": "Go Serverless v1.0! Your function executed successfully!",
-// 	})
-// 	if err != nil {
-// 		return Response{StatusCode: 404}, err
-// 	}
-// 	json.HTMLEscape(&buf, body)
-
-// 	resp := Response{
-// 		StatusCode:      200,
-// 		IsBase64Encoded: false,
-// 		Body:            buf.String(),
-// 		Headers: map[string]string{
-// 			"Content-Type":           "application/json",
-// 			"X-MyCompany-Func-Reply": "hello-handler",
-// 		},
-// 	}
-
-// 	return resp, nil
-// }
 
 func main() {
-	lambda.Start(LambdaHandler)
+	lambda.Start(CreatedHandler)
 }

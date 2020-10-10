@@ -14,11 +14,11 @@ provider:
   region: eu-west-1
 
   iamRoleStatements:
-    # - Effect: "Allow"
-    #   Action:
-    #     - "rekognition:DetectLabels"
-    #   Resource:
-    #     - "*"
+    - Effect: "Allow"
+      Action:
+        - "rekognition:DetectLabels"
+      Resource:
+        - "*"
     - Effect: "Allow"
       Action:
         - "dynamodb:PutItem"
@@ -79,16 +79,17 @@ functions:
       - http:
           path: list
           method: get
-  # created:
-  #   handler: bin/created
-  #   reservedConcurrency: 5
-  #   events:
-  #     - sqs:
-  #         batchSize: 1
-  #         arn:
-  #           Fn::GetAtt:
-  #           - Queue
-  #           - Arn
+  created:
+    handler: bin/created
+    reservedConcurrency: 5
+    events:
+      - s3:
+          bucket: !Ref Storage
+          event: s3:ObjectCreated:*
+          rules:
+            - suffix: .png
+          existing: true
+          
   # world:
   #   handler: bin/world
   #   events:
