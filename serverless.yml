@@ -17,6 +17,7 @@ provider:
     - Effect: "Allow"
       Action:
         - "rekognition:DetectLabels"
+        - "rekognition:RecognizeCelebrities"
       Resource:
         - "*"
     - Effect: "Allow"
