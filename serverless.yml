@@ -1,4 +1,4 @@
-service: helloworld
+service: who-is-it
 
 frameworkVersion: "2"
 
@@ -16,10 +16,8 @@ provider:
   iamRoleStatements:
     - Effect: "Allow"
       Action:
-        - "rekognition:DetectLabels"
         - "rekognition:RecognizeCelebrities"
-      Resource:
-        - "*"
+      Resource: "*"
     - Effect: "Allow"
       Action:
         - "dynamodb:PutItem"
@@ -42,7 +40,6 @@ provider:
             - ""
             - - "arn:aws:s3:::"
               - "Ref": "Storage"
-
     - Effect: "Allow"
       Action:
         - "s3:ListBucket"
@@ -90,14 +87,6 @@ functions:
           rules:
             - suffix: .png
           existing: true
-          
-  # world:
-  #   handler: bin/world
-  #   events:
-  #     - http:
-  #         path: world
-  #         method: get
-
 resources:
   Resources:
     Storage:

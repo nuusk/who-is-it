@@ -35,12 +35,6 @@ func ListHandler(ctx context.Context, request events.APIGatewayProxyRequest) (ev
 			"#url":      aws.String("url"),
 			"#fileName": aws.String("fileName"),
 		},
-		// ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-		// 	":a": {
-		// 		S: aws.String("No One You Know"),
-		// 	},
-		// },
-		// FilterExpression:     aws.String("Artist = :a"),
 		ProjectionExpression: aws.String("#ID, #url, #fileName"),
 		TableName:            aws.String(table),
 	}
@@ -61,8 +55,6 @@ func ListHandler(ctx context.Context, request events.APIGatewayProxyRequest) (ev
 				fmt.Println(aerr.Error())
 			}
 		} else {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
 			fmt.Println(err.Error())
 		}
 	}

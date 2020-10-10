@@ -35,8 +35,7 @@ type BodyResponse struct {
 }
 
 func getImagePublicURL(key string) string {
-	// "http://helloworld-dev-storage-19qdwfr7f4hse.s3-eu-west-1.amazonaws.com/7ff0e82d-fdf3-4547-9532-842f090289cd.png"
-	bucketName := "helloworld-dev-storage-19qdwfr7f4hse"
+	bucketName := "helloworld-dev-storage-1qp3fqg74aaqi"
 	region := "eu-west-1"
 	url := fmt.Sprintf(
 		"http://%s.s3-%s.amazonaws.com/%s",
