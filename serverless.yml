@@ -1,6 +1,6 @@
 service: who-is-it
 
-frameworkVersion: "2"
+frameworkVersion: "1.53"
 
 provider:
   name: aws

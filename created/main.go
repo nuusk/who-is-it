@@ -106,7 +106,6 @@ func CreatedHandler(ctx context.Context, event events.S3Event) (bool, error) {
 			log.Info().Msgf("%s updated, key: ", *celeb.Name, record.S3.Object.Key)
 		}
 
-
 		nbNoCelebs := len(celebRes.UnrecognizedFaces)
 		log.Info().Msgf("%v unrecognized people", nbNoCelebs)
 
