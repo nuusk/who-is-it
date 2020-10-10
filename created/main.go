@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -22,19 +23,28 @@ type Celebrity struct {
 }
 
 // CreatedHandler ...
-func CreatedHandler(ctx context.Context, event events.S3Event) (bool, error) {
+func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 	sess := session.Must(session.NewSession())
 	svc := rekognition.New(sess)
 	dyna := dynamodb.New(sess)
 
+	var s3Ev events.S3Event
+
 	for _, record := range event.Records {
-		log.Info().Msgf("%v\n %v", record.S3.Bucket.Name, record.S3.Object.Key)
+		log.Info().Msgf("%v", record.Body)
+		err := json.Unmarshal([]byte(record.Body), &s3Ev)
+		if err != nil {
+			log.Error().Err(err).Msgf("error unmarshalling sqs event to s3 event")
+		}
+
+		for _, s3Record := range s3Ev.Records {
+		
 
 		celebIn := &rekognition.RecognizeCelebritiesInput{
 			Image: &rekognition.Image{
 				S3Object: &rekognition.S3Object{
-					Bucket: aws.String(record.S3.Bucket.Name),
-					Name:   aws.String(record.S3.Object.Key),
+					Bucket: aws.String(s3Record.S3.Bucket.Name),
+					Name:   aws.String(s3Record.S3.Object.Key),
 				},
 			},
 		}
@@ -75,7 +85,7 @@ func CreatedHandler(ctx context.Context, event events.S3Event) (bool, error) {
 
 			newImageURL := &dynamodb.AttributeValue{  
 				// S: aws.String(imagePublicURL),
-				S: aws.String(getImagePublicURL(record)),
+				S: aws.String(getImagePublicURL(s3Record)),
 			} 
 
 			var images []*dynamodb.AttributeValue 
@@ -103,12 +113,12 @@ func CreatedHandler(ctx context.Context, event events.S3Event) (bool, error) {
 			if err != nil {
 				handleDynamoDBError(err)
 			}
-			log.Info().Msgf("%s updated, key: ", *celeb.Name, record.S3.Object.Key)
+			log.Info().Msgf("%s updated, key: ", *celeb.Name, s3Record.S3.Object.Key)
 		}
 
 		nbNoCelebs := len(celebRes.UnrecognizedFaces)
 		log.Info().Msgf("%v unrecognized people", nbNoCelebs)
-
+	}
 	}
 
 	return true, nil
