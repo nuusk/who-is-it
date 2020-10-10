@@ -17,11 +17,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type Celebrity struct {
-	Name 	string
-	ID 		string
-}
-
 // CreatedHandler ...
 func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 	sess := session.Must(session.NewSession())
@@ -57,31 +52,6 @@ func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 		table := os.Getenv("Table")
 		for _, celeb := range celebRes.CelebrityFaces {
 			log.Info().Msgf("%s found", *celeb.Name)
-
-			// uid := uuid.New()
-
-			// newItem := &dynamodb.PutItemInput{
-			// 	Item: map[string]*dynamodb.AttributeValue{
-			// 		"ID": {
-			// 			S: aws.String(uid.String()),
-			// 		},
-			// 		"celebrity_ID": {
-			// 			S: aws.String(*celeb.Id),
-			// 		},
-			// 		"celebrity_name": {
-			// 			S: aws.String(*celeb.Name),
-			// 		},
-			// 		"celebrity_image_url": {
-			// 			S: aws.String(record.S3.Bucket.Name),
-			// 		},
-			// 	},
-			// 	TableName: aws.String(table),
-			// }
-			// _, err := dyna.PutItem(newItem)
-			// if err != nil {
-			// 	handleDynamoDBError(err)
-			// }
-			// log.Info().Msgf("%s uploaded into dyna, key: ", *celeb.Name, record.S3.Object.Key)
 
 			newImageURL := &dynamodb.AttributeValue{  
 				// S: aws.String(imagePublicURL),
@@ -149,7 +119,6 @@ func handleDynamoDBError(err error) {
 		default:
 			log.Error().Err(err).Msgf(aerr.Error())
 		}
-		// return events.APIGatewayProxyResponse{Body: "error with dyna put item\n", StatusCode: http.StatusBadRequest}, nil
 	} else {
 		log.Error().Err(err).Msgf(err.Error())
 	}
