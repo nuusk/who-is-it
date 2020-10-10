@@ -1,0 +1,33 @@
+name: deploy
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+
+  deploy:
+    name: Upload Layer to AWS Lambda
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      # For more info: https://github.com/aws-actions/configure-aws-credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Setup Go environment
+        uses: actions/setup-go@v2.1.3
+        with:
+          go-version: 1.5
+          stable: true
+          
+      - name: Deploy to Cloud
+        run: |
+          make deploy
