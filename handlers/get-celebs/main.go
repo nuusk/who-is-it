@@ -15,27 +15,31 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 )
 
-type Response events.APIGatewayProxyResponse
+const (
+	tableRef = "Table"
+)
 
+// Image is used to store images in S3
 type Image struct {
 	ID       string `json:"id"`
 	FileName string `json:"fileName"`
-	Url      string `json:"url"`
+	URL      string `json:"url"`
 }
 
-func ListHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	// connect to s3
+// GetCelebsHandler executes on GET requests on /celeb endpoint
+// returns a list of celebrities curently recognized
+func GetCelebsHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sess := session.Must(session.NewSession())
 	dyna := dynamodb.New(sess)
 
-	table := os.Getenv("Table")
+	table := os.Getenv(tableRef)
 	input := &dynamodb.ScanInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#ID":       aws.String("ID"),
+			"#id":       aws.String("id"),
 			"#url":      aws.String("url"),
 			"#fileName": aws.String("fileName"),
 		},
-		ProjectionExpression: aws.String("#ID, #url, #fileName"),
+		ProjectionExpression: aws.String("#id, #url, #fileName"),
 		TableName:            aws.String(table),
 	}
 
@@ -87,5 +91,5 @@ func ListHandler(ctx context.Context, request events.APIGatewayProxyRequest) (ev
 }
 
 func main() {
-	lambda.Start(ListHandler)
+	lambda.Start(GetCelebsHandler)
 }

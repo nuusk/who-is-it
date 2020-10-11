@@ -7,6 +7,7 @@ provider:
   environment:
     Bucket: !Ref Storage
     Table: !Ref Table
+    Region: eu-west-1
 
   stage: dev
   region: eu-west-1
@@ -63,20 +64,14 @@ package:
     - ./bin/**
 
 functions:
-  upload:
-    handler: bin/upload
+  image-upload:
+    handler: bin/image-upload
     events:
       - http:
-          path: upload
+          path: celeb
           method: post
-  list:
-    handler: bin/list
-    events:
-      - http:
-          path: list
-          method: get
-  created:
-    handler: bin/created
+  image-created:
+    handler: bin/image-created
     reservedConcurrency: 4
     events:
       - sqs:
@@ -85,6 +80,12 @@ functions:
             Fn::GetAtt:
             - Queue
             - Arn
+  get-celebs:
+    handler: bin/get-celebs
+    events:
+      - http:
+          path: celeb
+          method: get
 resources:
   Resources:
     Storage:
