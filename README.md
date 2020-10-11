@@ -45,9 +45,11 @@ Upload your images using to `/dev/celeb` endpoint
 for the sake of testing, you can use `./images` as your `PHOTO_LIBRARY`
 
 1.1. Observe how SQS allows to queue uploading images to the dynamodb
+
 ![sqs-dynamodb](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/dynamodb.gif)
 
 1.2. You can also see the queued messages in SQS console
+
 ![sqs-messages](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/sqs.gif)
 
 2. List celebrities found in your library
