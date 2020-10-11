@@ -9,7 +9,7 @@ provider:
     Table: !Ref Table
     Region: eu-west-1
 
-  stage: dev
+  stage: main
   region: eu-west-1
 
   iamRoleStatements:
@@ -19,7 +19,6 @@ provider:
       Resource: "*"
     - Effect: "Allow"
       Action:
-        - "dynamodb:PutItem"
         - "dynamodb:Scan"
         - "dynamodb:UpdateItem"
       Resource:
@@ -28,7 +27,6 @@ provider:
       Action:
         - "s3:PutObject"
         - "s3:PutObjectAcl"
-        - "s3:GetBucketLocation"
       Resource:
         - Fn::Join:
             - ""
