@@ -27,9 +27,10 @@ Upload your images using to `/dev/celeb` endpoint
 - this request will return an `url` to an object created in the s3 that will be used later
 - related serverless functions:
   - `image-upload` - executed by this request
+![](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-11+at+20.37.25.png) 
   - `image-created` - event triggered by *sqs*
 
-#### GET `/celeb`
+#### GET `/celeb
 - returns list of celebrities recognized from your photos. Each celebrity contains an array of photos representing him (that were uploaded to s3)
 - related serverless functions:
   - `get-celebs` - executed by this request
