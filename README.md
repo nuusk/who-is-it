@@ -38,7 +38,20 @@ Upload your images using to `/dev/celeb` endpoint
 ![get-celebs](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-11+at+20.45.12.png)
 
 ## Demo
+1. Add many photos asynchronously
 ```
-./scripts/batch_send_directory.sh ${API}/celeb ${PHOTOS_LIBRARY}
+./scripts/batch_post_directory.sh ${API}/celeb ${PHOTOS_LIBRARY}
 ```
 for the sake of testing, you can use `./images` as your `PHOTO_LIBRARY`
+
+1.1. Observe how SQS allows to queue uploading images to the dynamodb
+![sqs-dynamodb](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/dynamodb.gif)
+
+1.2. You can also see the queued messages in SQS console
+![sqs-messages](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/sqs.gif)
+
+2. List celebrities found in your library
+```
+curl ${API}/celeb | jq
+```
+![get-celebs](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-12+at+01.26.59.png)
