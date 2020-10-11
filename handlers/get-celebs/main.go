@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 	"net/http"
 	"os"
@@ -21,11 +20,16 @@ const (
 	tableRef = "Table"
 )
 
-// Image is used to store images in S3
-type Image struct {
-	ID       string `json:"id"`
-	FileName string `json:"fileName"`
-	URL      string `json:"url"`
+// Celeb is used to store Celebr name and photos associated with him/her
+type Celeb struct {
+	ID     string   `json:"id"`
+	Name   string   `json:"celeb_name"`
+	Images []string `json:"celeb_images"`
+}
+
+// GetCelebsResponse contains array of celebrities with their photos
+type GetCelebsResponse struct {
+	Celebs []Celeb `json:"celebs"`
 }
 
 // GetCelebsHandler executes on GET requests on /celeb endpoint
@@ -37,11 +41,11 @@ func GetCelebsHandler(ctx context.Context, req events.APIGatewayProxyRequest) (e
 	table := os.Getenv(tableRef)
 	input := &dynamodb.ScanInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#id":       aws.String("id"),
-			"#url":      aws.String("url"),
-			"#fileName": aws.String("fileName"),
+			"#id":           aws.String("id"),
+			"#celeb_images": aws.String("celeb_images"),
+			"#celeb_name":   aws.String("celeb_name"),
 		},
-		ProjectionExpression: aws.String("#id, #url, #fileName"),
+		ProjectionExpression: aws.String("#id, #celeb_images, #celeb_name"),
 		TableName:            aws.String(table),
 	}
 
@@ -51,26 +55,24 @@ func GetCelebsHandler(ctx context.Context, req events.APIGatewayProxyRequest) (e
 		return events.APIGatewayProxyResponse{Body: "error scanning dynamodb records", StatusCode: http.StatusInternalServerError}, nil
 	}
 
-	var images []Image
+	resRaw := GetCelebsResponse{}
 	for _, i := range result.Items {
-		image := Image{}
+		celeb := Celeb{}
 
-		err = dynamodbattribute.UnmarshalMap(i, &image)
+		err = dynamodbattribute.UnmarshalMap(i, &celeb)
 		if err != nil {
-			log.Error().Err(err).Msgf("error while unmarshalling images")
+			log.Error().Err(err).Msgf("error while unmarshalling celebrities")
 			return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: http.StatusInternalServerError}, nil
 		}
-		images = append(images, image)
-		log.Error().Err(err).Msgf("new url [%v] appended\nnew list: %v", image, images)
+
+		resRaw.Celebs = append(resRaw.Celebs, celeb)
 	}
 
-	res, err := json.Marshal(&images)
+	res, err := json.Marshal(&resRaw)
 	if err != nil {
 		log.Error().Err(err).Msgf("error while marshalling response")
 		return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: 404}, nil
 	}
-	fmt.Println("res")
-	fmt.Println(res)
 
 	return events.APIGatewayProxyResponse{Body: string(res), StatusCode: 200}, nil
 }
