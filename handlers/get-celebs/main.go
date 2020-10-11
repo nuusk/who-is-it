@@ -4,15 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/pietersweter/who-is-it/pkg/awshelpers"
+	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
+	"github.com/rs/zerolog/log"
 )
 
 const (
@@ -28,7 +30,7 @@ type Image struct {
 
 // GetCelebsHandler executes on GET requests on /celeb endpoint
 // returns a list of celebrities curently recognized
-func GetCelebsHandler(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func GetCelebsHandler(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sess := session.Must(session.NewSession())
 	dyna := dynamodb.New(sess)
 
@@ -45,22 +47,8 @@ func GetCelebsHandler(ctx context.Context, request events.APIGatewayProxyRequest
 
 	result, err := dyna.Scan(input)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case dynamodb.ErrCodeProvisionedThroughputExceededException:
-				fmt.Println(dynamodb.ErrCodeProvisionedThroughputExceededException, aerr.Error())
-			case dynamodb.ErrCodeResourceNotFoundException:
-				fmt.Println(dynamodb.ErrCodeResourceNotFoundException, aerr.Error())
-			case dynamodb.ErrCodeRequestLimitExceeded:
-				fmt.Println(dynamodb.ErrCodeRequestLimitExceeded, aerr.Error())
-			case dynamodb.ErrCodeInternalServerError:
-				fmt.Println(dynamodb.ErrCodeInternalServerError, aerr.Error())
-			default:
-				fmt.Println(aerr.Error())
-			}
-		} else {
-			fmt.Println(err.Error())
-		}
+		awshelpers.HandleDynamoDBError(err)
+		return events.APIGatewayProxyResponse{Body: "error scanning dynamodb records", StatusCode: http.StatusInternalServerError}, nil
 	}
 
 	var images []Image
@@ -68,26 +56,23 @@ func GetCelebsHandler(ctx context.Context, request events.APIGatewayProxyRequest
 		image := Image{}
 
 		err = dynamodbattribute.UnmarshalMap(i, &image)
-		fmt.Println("unmarshalmap")
-		fmt.Println(image)
-		images = append(images, image)
-
 		if err != nil {
-			fmt.Println("error while unmarshalling:")
-			fmt.Println(err.Error())
-			return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: 404}, nil
+			log.Error().Err(err).Msgf("error while unmarshalling images")
+			return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: http.StatusInternalServerError}, nil
 		}
+		images = append(images, image)
+		log.Error().Err(err).Msgf("new url [%v] appended\nnew list: %v", image, images)
 	}
 
-	// Marshal the response into json bytes, if error return 404
-	response, err := json.Marshal(&images)
+	res, err := json.Marshal(&images)
 	if err != nil {
+		log.Error().Err(err).Msgf("error while marshalling response")
 		return events.APIGatewayProxyResponse{Body: err.Error(), StatusCode: 404}, nil
 	}
-	fmt.Println("response")
-	fmt.Println(response)
+	fmt.Println("res")
+	fmt.Println(res)
 
-	return events.APIGatewayProxyResponse{Body: string(response), StatusCode: 200}, nil
+	return events.APIGatewayProxyResponse{Body: string(res), StatusCode: 200}, nil
 }
 
 func main() {

@@ -68,7 +68,10 @@ func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 						},
 					},
 					ExpressionAttributeValues: map[string]*dynamodb.AttributeValue{
-						":images": {
+						":celeb_name": {
+							S: aws.String(*celeb.Name),
+						},
+						":celeb_images": {
 							L: images,
 						},
 						":empty_list": {
@@ -76,7 +79,7 @@ func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 						},
 					},
 					ReturnValues:     aws.String("ALL_NEW"),
-					UpdateExpression: aws.String("SET images = list_append(if_not_exists(images, :empty_list), :images)"),
+					UpdateExpression: aws.String("SET celeb_images = list_append(if_not_exists(celeb_images, :empty_list), :celeb_images), celeb_name = if_not_exists(celeb_name, :celeb_name)"),
 					TableName:        aws.String(table),
 				}
 				_, err = dyna.UpdateItem(updated)
