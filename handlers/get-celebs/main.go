@@ -3,9 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 	"net/http"
 	"os"
+
+	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
@@ -22,7 +23,6 @@ const (
 
 // Celeb is used to store Celebr name and photos associated with him/her
 type Celeb struct {
-	ID     string   `json:"id"`
 	Name   string   `json:"celeb_name"`
 	Images []string `json:"celeb_images"`
 }
@@ -41,11 +41,10 @@ func GetCelebsHandler(ctx context.Context, req events.APIGatewayProxyRequest) (e
 	table := os.Getenv(tableRef)
 	input := &dynamodb.ScanInput{
 		ExpressionAttributeNames: map[string]*string{
-			"#id":           aws.String("id"),
 			"#celeb_images": aws.String("celeb_images"),
 			"#celeb_name":   aws.String("celeb_name"),
 		},
-		ProjectionExpression: aws.String("#id, #celeb_images, #celeb_name"),
+		ProjectionExpression: aws.String("#celeb_images, #celeb_name"),
 		TableName:            aws.String(table),
 	}
 

@@ -54,4 +54,4 @@ for the sake of testing, you can use `./images` as your `PHOTO_LIBRARY`
 ```
 curl ${API}/celeb | jq
 ```
-![get-celebs](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-12+at+01.26.59.png)
+![get-celebs](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-12+at+01.38.59.png)
