@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 	"os"
+
+	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 
 	"github.com/aws/aws-lambda-go/events"
 
@@ -16,9 +17,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// CreatedHandler is triggered after an object is uploaded to s3
+// ImageCreatedHandler is triggered after an object is uploaded to s3
 // it runs a rekognition call to determine celebrities in the photo
-func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
+func ImageCreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 	sess := session.Must(session.NewSession())
 	svc := rekognition.New(sess)
 	dyna := dynamodb.New(sess)
@@ -99,5 +100,5 @@ func CreatedHandler(ctx context.Context, event events.SQSEvent) (bool, error) {
 }
 
 func main() {
-	lambda.Start(CreatedHandler)
+	lambda.Start(ImageCreatedHandler)
 }

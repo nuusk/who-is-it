@@ -38,9 +38,9 @@ type BodyResponse struct {
 	URL string `json:"url"`
 }
 
-// UploadHandler is executed for POST to the /celeb endpoint
+// ImageUploadHandler is executed for POST to the /celeb endpoint
 // it uploads an image to s3 and returns a public URL to it
-func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func ImageUploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sess := session.Must(session.NewSession())
 	uploader := s3manager.NewUploader(sess)
 
@@ -95,5 +95,5 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 }
 
 func main() {
-	lambda.Start(UploadHandler)
+	lambda.Start(ImageUploadHandler)
 }
