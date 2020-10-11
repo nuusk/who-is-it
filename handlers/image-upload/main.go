@@ -13,7 +13,6 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/rs/zerolog/log"
 	"gopkg.in/validator.v1"
@@ -43,7 +42,6 @@ type BodyResponse struct {
 // it uploads an image to s3 and returns a public URL to it
 func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	sess := session.Must(session.NewSession())
-	dyna := dynamodb.New(sess)
 	uploader := s3manager.NewUploader(sess)
 
 	var reqJSON ImageUploadRequest
@@ -83,29 +81,6 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 		return events.APIGatewayProxyResponse{Body: "unable to upload to s3\n", StatusCode: http.StatusInternalServerError}, nil
 	}
 	log.Info().Msgf("uploaded image to s3 with key: %s", key)
-
-	table := os.Getenv(tableRef)
-	newItem := &dynamodb.PutItemInput{
-		Item: map[string]*dynamodb.AttributeValue{
-			"ID": {
-				S: aws.String(uid),
-			},
-			"fileName": {
-				S: aws.String(reqJSON.FileName),
-			},
-			"url": {
-				S: aws.String(awshelpers.GetPublicURLFromKey(key)),
-			},
-		},
-		TableName: aws.String(table),
-	}
-
-	_, err = dyna.PutItem(newItem)
-	if err != nil {
-		awshelpers.HandleDynamoDBError(err)
-		return events.APIGatewayProxyResponse{Body: "unable to upload to dynamodb\n", StatusCode: http.StatusInternalServerError}, nil
-	}
-	log.Info().Msgf("uploaded image to dynamodb with key: %s", uid)
 
 	res := BodyResponse{
 		URL: awshelpers.GetPublicURLFromKey(key),
