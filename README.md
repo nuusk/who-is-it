@@ -31,7 +31,7 @@ Upload your images using to `/dev/celeb` endpoint
   - `image-created` - event triggered by *sqs*
 ![image-created](https://pieterweter-repository-images.s3-eu-west-1.amazonaws.com/Screenshot+2020-10-11+at+20.44.27.png) 
 
-#### GET `/celeb
+#### GET `/celeb`
 - returns list of celebrities recognized from your photos. Each celebrity contains an array of photos representing him (that were uploaded to s3)
 - related serverless functions:
   - `get-celebs` - executed by this request
