@@ -5,14 +5,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
+	"github.com/pietersweter/who-is-it/pkg/awshelpers"
 	"net/http"
 	"os"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -72,7 +71,7 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 
 	bucket := os.Getenv(bucketRef)
 	uid := uuid.New().String()
-	key := getImageNameWithExtension(uid, reqJSON.Extension)
+	key := awshelpers.GetImageNameWithExtension(uid, reqJSON.Extension)
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
@@ -81,7 +80,7 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 	})
 	if err != nil {
 		log.Error().Err(err).Msgf("issue uploading to s3: %s", err.Error())
-		return events.APIGatewayProxyResponse{Body: "unable to upload to s3\n", StatusCode: http.StatusBadRequest}, nil
+		return events.APIGatewayProxyResponse{Body: "unable to upload to s3\n", StatusCode: http.StatusInternalServerError}, nil
 	}
 	log.Info().Msgf("uploaded image to s3 with key: %s", key)
 
@@ -95,7 +94,7 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 				S: aws.String(reqJSON.FileName),
 			},
 			"url": {
-				S: aws.String(getImagePublicURL(key)),
+				S: aws.String(awshelpers.GetPublicURLFromKey(key)),
 			},
 		},
 		TableName: aws.String(table),
@@ -103,12 +102,13 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 
 	_, err = dyna.PutItem(newItem)
 	if err != nil {
-		handleDynamoDBError(err)
+		awshelpers.HandleDynamoDBError(err)
+		return events.APIGatewayProxyResponse{Body: "unable to upload to dynamodb\n", StatusCode: http.StatusInternalServerError}, nil
 	}
 	log.Info().Msgf("uploaded image to dynamodb with key: %s", uid)
 
 	res := BodyResponse{
-		URL: getImagePublicURL(key),
+		URL: awshelpers.GetPublicURLFromKey(key),
 	}
 	resRaw, err := json.Marshal(&res)
 	if err != nil {
@@ -121,52 +121,4 @@ func UploadHandler(ctx context.Context, reqRaw events.APIGatewayProxyRequest) (e
 
 func main() {
 	lambda.Start(UploadHandler)
-}
-
-func getImagePublicURL(key string) string {
-	bucketName := os.Getenv(bucketRef)
-	region := os.Getenv(regionRef)
-	url := fmt.Sprintf(
-		"http://%s.s3-%s.amazonaws.com/%s",
-		bucketName,
-		region,
-		key,
-	)
-	log.Info().Msgf("generated public url: %s", url)
-	return url
-}
-
-func getImageNameWithExtension(key string, ext string) string {
-	name := fmt.Sprintf(
-		"%s.%s",
-		key, ext,
-	)
-	log.Info().Msgf("generated image name with extension: %s", name)
-	return name
-}
-
-func handleDynamoDBError(err error) {
-	aerr, ok := err.(awserr.Error)
-	if ok {
-		switch aerr.Code() {
-		case dynamodb.ErrCodeConditionalCheckFailedException:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeConditionalCheckFailedException, aerr.Error())
-		case dynamodb.ErrCodeProvisionedThroughputExceededException:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeProvisionedThroughputExceededException, aerr.Error())
-		case dynamodb.ErrCodeResourceNotFoundException:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeResourceNotFoundException, aerr.Error())
-		case dynamodb.ErrCodeItemCollectionSizeLimitExceededException:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeItemCollectionSizeLimitExceededException, aerr.Error())
-		case dynamodb.ErrCodeTransactionConflictException:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeTransactionConflictException, aerr.Error())
-		case dynamodb.ErrCodeRequestLimitExceeded:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeRequestLimitExceeded, aerr.Error())
-		case dynamodb.ErrCodeInternalServerError:
-			log.Error().Err(err).Msgf("%v, %v", dynamodb.ErrCodeInternalServerError, aerr.Error())
-		default:
-			log.Error().Err(err).Msgf(aerr.Error())
-		}
-	} else {
-		log.Error().Err(err).Msgf(err.Error())
-	}
 }
